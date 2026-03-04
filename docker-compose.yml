@@ -1,6 +1,6 @@
 services:
   backend:
-    image: ghcr.io/xiaomayi-ant/smart-agent-backend:latest
+    image: ghcr.io/xiaomayi-ant/orig-bot-backend:latest
     env_file:
       - ./backend/.env
     environment:
@@ -12,7 +12,7 @@ services:
     restart: unless-stopped
 
   prisma-migrate:
-    image: ghcr.io/xiaomayi-ant/smart-agent-prisma:latest
+    image: ghcr.io/xiaomayi-ant/orig-bot-frontend-migrator:latest
     env_file:
       - ./frontend/.env
     command: ["npx", "prisma", "migrate", "deploy"]
@@ -21,7 +21,7 @@ services:
     restart: "no"
 
   frontend:
-    image: ghcr.io/xiaomayi-ant/smart-agent-frontend:latest
+    image: ghcr.io/xiaomayi-ant/orig-bot-frontend:latest
     env_file:
       - ./frontend/.env
     environment:
@@ -37,5 +37,4 @@ services:
 networks:
   default:
     name: smart-agent
-
 
