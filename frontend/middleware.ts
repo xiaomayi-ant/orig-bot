@@ -1,10 +1,10 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || "/smart-bot";
+const BASE_PATH = "/smart-bot";
 
 export const config = {
-  matcher: [BASE_PATH, `${BASE_PATH}/:path*`],
+  matcher: ["/smart-bot/:path*"],
 };
 
 export async function middleware(req: NextRequest) {
