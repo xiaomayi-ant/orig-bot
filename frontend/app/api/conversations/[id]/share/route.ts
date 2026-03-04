@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getBasePath } from "@/lib/basePath";
 
 export const runtime = "nodejs";
 
@@ -24,7 +25,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     }
     
     // 生成分享URL（这里可以扩展为更复杂的分享机制，比如生成临时token等）
-    const shareUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/chat/${id}`;
+    const appBase = (process.env.NEXT_PUBLIC_APP_URL || `http://localhost:3000${getBasePath()}`).replace(/\/$/, "");
+    const shareUrl = `${appBase}/chat/${id}`;
     
     return NextResponse.json({
       shareUrl,

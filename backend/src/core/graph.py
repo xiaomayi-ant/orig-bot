@@ -1800,31 +1800,58 @@ Create the graph instance with checkpointer (PG preferred, fallback to in-memory
 At import time we prefer a lazy, auto-reconnecting saver to avoid holding a dead
 connection during long idle periods before the first request.
 """
-try:
-    from .auto_reconnect_checkpointer import AutoReconnectCheckpointer
-    from .checkpointer_adapter import MinimalCheckpointerAdapter  # 恢复使用，但已修复反序列化
-    _pg_dsn = getattr(settings, "pg_dsn", None)
-    if _pg_dsn:
+def _build_preferred_checkpointer():
+    """Try building PG checkpointer; return None when unavailable."""
+    try:
+        from .auto_reconnect_checkpointer import AutoReconnectCheckpointer
+        from .checkpointer_adapter import MinimalCheckpointerAdapter
+
+        _pg_dsn = getattr(settings, "pg_dsn", None)
+        if not _pg_dsn:
+            raise ImportError("PG_DSN not configured")
+
         _auto = AutoReconnectCheckpointer(_pg_dsn, max_retry=1, setup_on_connect=True)
-        _checkpointer = MinimalCheckpointerAdapter(_auto)  # 使用修复后的 adapter
-        try:
-            print("[Graph] Using AutoReconnectCheckpointer with MinimalCheckpointerAdapter (fixed deserialization)")
-        except Exception:
-            pass
-    else:
-        raise ImportError("PG_DSN not configured")
-except Exception as _e:
+        _adapter = MinimalCheckpointerAdapter(_auto)
+        print("[Graph] Preferred checkpointer prepared: AutoReconnect + MinimalCheckpointerAdapter")
+        return _adapter
+    except Exception as e:
+        print(f"[Graph] Preferred checkpointer unavailable: {e}")
+        return None
+
+
+def _build_inmemory_checkpointer(reason: Any = None):
+    """Build in-memory checkpointer as fallback."""
     try:
         from langgraph.checkpoint.memory import InMemorySaver
-        _checkpointer = InMemorySaver()
-        print(f"[Graph] Using InMemorySaver checkpointer due to: {_e}")
-    except Exception:
-        _checkpointer = None  # last resort
 
-if _checkpointer is not None:
-    graph = create_graph().compile(checkpointer=_checkpointer)
-else:
-    graph = create_graph().compile()
+        if reason is not None:
+            print(f"[Graph] Falling back to InMemorySaver due to: {reason}")
+        return InMemorySaver()
+    except Exception as e:
+        print(f"[Graph] InMemorySaver unavailable: {e}")
+        return None
+
+
+def _compile_graph(checkpointer: Any = None):
+    if checkpointer is not None:
+        return create_graph().compile(checkpointer=checkpointer)
+    return create_graph().compile()
+
+
+_checkpointer = _build_preferred_checkpointer()
+if _checkpointer is None:
+    _checkpointer = _build_inmemory_checkpointer("preferred checkpointer not available")
+
+try:
+    graph = _compile_graph(_checkpointer)
+except Exception as _compile_error:
+    # 关键兜底：checkpointer 类型不兼容或初始化异常时，自动降级继续启动
+    print(f"[Graph] Compile with checkpointer failed: {_compile_error}")
+    _checkpointer = _build_inmemory_checkpointer(_compile_error)
+    if _checkpointer is not None:
+        graph = _compile_graph(_checkpointer)
+    else:
+        graph = _compile_graph(None)
 
 try:
     used = type(_checkpointer).__name__ if _checkpointer is not None else "None"

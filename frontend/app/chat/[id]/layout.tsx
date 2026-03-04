@@ -2,6 +2,7 @@
 
 import { type ReactNode, use, useEffect, useState } from "react";
 import { MyRuntimeProvider } from "../../MyRuntimeProvider";
+import { apiPath } from "@/lib/basePath";
 
 export default function ChatRouteLayout({
   children,
@@ -31,7 +32,7 @@ export default function ChatRouteLayout({
           setThreadId(urlTid);
           console.log(`[LAYOUT] use URL tid for key:`, urlTid);
         } else {
-          const r = await fetch(`/api/conversations/${id}`);
+          const r = await fetch(apiPath(`/api/conversations/${id}`));
           if (r.ok) {
             const info = await r.json();
             const tid = info?.threadId || null;
@@ -56,5 +57,4 @@ export default function ChatRouteLayout({
   // 使用 conversationId 作为 key，避免 threadId 变化导致 Provider 重新挂载
   return <MyRuntimeProvider key={id} conversationId={id} threadId={safeThreadId}>{children}</MyRuntimeProvider>;
 }
-
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withAuthHeaders } from "@/lib/withAuthHeaders";
+import { apiPath } from "@/lib/basePath";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,10 @@ export async function GET(req: NextRequest) {
       // 内部获取签名URL
       const base = req.nextUrl.origin;
       const headers = await withAuthHeaders();
-      const resp = await fetch(`${base}/api/files/${encodeURIComponent(fileId)}`, { headers });
+      const resp = await fetch(
+        `${base}${apiPath(`/api/files/${encodeURIComponent(fileId)}`)}`,
+        { headers },
+      );
       if (!resp.ok) {
         const j = await resp.json().catch(() => ({} as any));
         return NextResponse.json({ error: j?.error || "failed to sign url" }, { status: 502 });
@@ -57,5 +61,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: e?.message || "proxy failed" }, { status: 500 });
   }
 }
-
 

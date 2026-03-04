@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Mic, X } from "lucide-react";
+import { apiPath } from "@/lib/basePath";
 
 type ServerEvent = { type: string; [k: string]: any };
 
@@ -25,7 +26,7 @@ export default function VoicePage() {
         startedRef.current = true;
         setStatus("connecting");
         // 兜底设置 sid（无论是否已有都会刷新）
-        try { await fetch('/api/auth/guest', { credentials: 'include' }); } catch {}
+        try { await fetch(apiPath('/api/auth/guest'), { credentials: 'include' }); } catch {}
         await connect();
       } catch (e: any) {
         setError(e?.message || "连接失败");
@@ -37,7 +38,7 @@ export default function VoicePage() {
   }, []);
 
   async function connect() {
-    const tokenResp = await fetch("/api/voice/token");
+    const tokenResp = await fetch(apiPath("/api/voice/token"));
     if (!tokenResp.ok) throw new Error(`获取临时凭证失败: ${tokenResp.status}`);
     const { client_secret } = await tokenResp.json();
 
@@ -183,5 +184,4 @@ export default function VoicePage() {
     </div>
   );
 }
-
 

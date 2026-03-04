@@ -4,6 +4,7 @@ import { withAuthHeaders } from "@/lib/withAuthHeaders";
 import { verifySession } from "@/lib/jwt";
 import { randomUUID } from "node:crypto";
 import { shouldUseVision, prepareVisionMessage, extractText } from "@/lib/messageAnalyzer";
+import { apiPath } from "@/lib/basePath";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,7 +150,10 @@ export async function POST(req: NextRequest) {
         for (const p of parts) {
           if (p && p.type === 'file_ref' && p.file_id) {
             try {
-              const resp = await fetch(`${base}/api/files/${encodeURIComponent(String(p.file_id))}` as any, { headers: authHeaders as any });
+              const resp = await fetch(
+                `${base}${apiPath(`/api/files/${encodeURIComponent(String(p.file_id))}`)}` as any,
+                { headers: authHeaders as any },
+              );
               if (resp.ok) {
                 const data = await resp.json().catch(() => ({} as any));
                 const url = typeof data?.url === 'string' ? data.url : undefined;
@@ -348,5 +352,4 @@ export async function POST(req: NextRequest) {
   logp('response-created');
   return res;
 }
-
 

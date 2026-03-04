@@ -28,6 +28,10 @@ FROM deps AS builder
 WORKDIR /app/frontend
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1
+ARG NEXT_PUBLIC_BASE_PATH=/smart-bot
+ARG NEXT_BASE_PATH=/smart-bot
+ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH} \
+    NEXT_BASE_PATH=${NEXT_BASE_PATH}
 
 # Copy source code
 COPY frontend ./
@@ -73,4 +77,3 @@ COPY frontend/prisma ./prisma
 
 # prisma CLI is available via devDependency installed in deps stage
 CMD ["pnpm", "prisma", "migrate", "deploy"]
-

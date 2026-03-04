@@ -12,7 +12,12 @@ function getCorsHeaders() {
 
 async function handleRequest(req: NextRequest, method: string) {
   try {
-    const path = req.nextUrl.pathname.replace(/^\/?api\//, "");
+    const marker = "/api/";
+    const idx = req.nextUrl.pathname.indexOf(marker);
+    if (idx < 0) {
+      return NextResponse.json({ error: "Invalid API path" }, { status: 400 });
+    }
+    const path = req.nextUrl.pathname.slice(idx + marker.length);
     
     // 排除特定的端点，这些由前端处理
     if (path.startsWith("upload") || path.startsWith("files/")) {

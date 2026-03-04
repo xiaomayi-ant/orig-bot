@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, ZoomIn } from "lucide-react";
+import { apiPath } from "@/lib/basePath";
 
 interface ImageViewerProps {
   src: string;
@@ -19,7 +20,7 @@ export function ImageViewer({ src, alt = "", className = "", thumbnailUrl }: Ima
   const [triedProxy, setTriedProxy] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
-  const makeProxyUrl = (u: string) => `/api/preview/image?u=${encodeURIComponent(u)}`;
+  const makeProxyUrl = (u: string) => apiPath(`/api/preview/image?u=${encodeURIComponent(u)}`);
 
   const displaySrc = thumbnailUrl || src;
 

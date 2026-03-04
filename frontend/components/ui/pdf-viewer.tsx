@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { apiPath } from "@/lib/basePath";
 
 type PdfViewerProps = {
   url: string;
@@ -17,7 +18,7 @@ export function PdfViewer({ url, title, className = "", open, onOpenChange }: Pd
   const [loaded, setLoaded] = useState(false);
   const isOpen = open !== undefined ? open : internalOpen;
   const previewUrl = useMemo(() => {
-    try { return `/api/preview/pdf?u=${encodeURIComponent(url)}`; } catch { return `/api/preview/pdf?u=${encodeURIComponent(url)}`; }
+    try { return apiPath(`/api/preview/pdf?u=${encodeURIComponent(url)}`); } catch { return apiPath(`/api/preview/pdf?u=${encodeURIComponent(url)}`); }
   }, [url]);
 
   const displayName = useMemo(() => {
@@ -87,5 +88,4 @@ export function PdfViewer({ url, title, className = "", open, onOpenChange }: Pd
 }
 
 export default PdfViewer;
-
 

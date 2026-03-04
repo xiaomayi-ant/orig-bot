@@ -27,6 +27,7 @@ import React from "react";
 import { useChatUI } from "@/lib/chatUiContext";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { apiPath, withBasePath } from "@/lib/basePath";
 
 // 自定义图片组件，支持缩略图和点击查看大图
 const CustomImage = ({ src, alt }: { src: string; alt?: string }) => {
@@ -523,7 +524,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
       const pendingMessage = urlParams.get('message');
       if (pendingMessage && pendingMessage.trim()) {
         initialPendingMessageRef.current = pendingMessage;
-        window.history.replaceState({}, '', `/chat/${id}`);
+        window.history.replaceState({}, '', withBasePath(`/chat/${id}`));
       }
     } catch {}
   }, [id]);
@@ -540,7 +541,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
       try {
         let msgs: any[] = [];
         try {
-          const resp = await fetch(`/api/messages?conversationId=${id}`);
+          const resp = await fetch(apiPath(`/api/messages?conversationId=${id}`));
           if (resp.ok) {
             const data = await resp.json();
             msgs = Array.isArray(data?.items) ? data.items : [];
@@ -740,5 +741,4 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     </div>
   );
 }
-
 

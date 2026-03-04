@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useRef, useState } from 'react';
+import { apiPath } from "@/lib/basePath";
 
 export type DictationResult = { text: string; blob: Blob; audioId?: string; url?: string };
 
@@ -36,7 +37,7 @@ export function useDictation() {
           const blob = new Blob(chunksRef.current, { type: mr.mimeType || 'audio/webm' });
           const form = new FormData();
           form.append('file', blob, `recording-${Date.now()}.webm`);
-          const res = await fetch('/api/transcribe', { method: 'POST', body: form });
+          const res = await fetch(apiPath('/api/transcribe'), { method: 'POST', body: form });
           if (!res.ok) throw new Error('transcribe_failed');
           const json = await res.json();
           resolve({ text: String(json?.text || ''), blob, audioId: json?.audioId, url: json?.url });
@@ -59,5 +60,4 @@ export function useDictation() {
 
   return { isRecording, isBusy, start, stop };
 }
-
 

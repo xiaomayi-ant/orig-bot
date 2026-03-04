@@ -19,7 +19,14 @@ from ..services.document_service import DocumentService
 
 # Initialize router and service
 router = APIRouter(prefix="/api/documents", tags=["documents"])
-document_service = DocumentService()
+document_service: Optional[DocumentService] = None
+
+
+def get_document_service() -> DocumentService:
+    global document_service
+    if document_service is None:
+        document_service = DocumentService()
+    return document_service
 
 # Simple in-memory file status store (use Redis in production)
 file_status_store: Dict[str, Dict] = {}
@@ -143,7 +150,7 @@ async def process_pdf_async(file_id: str, file_path: str, category: Optional[str
         result = None
         with open(file_path, "rb") as f:
             uf = StarletteUploadFile(filename=os.path.basename(file_path), file=f)  # type: ignore
-            result = await document_service.upload_and_process_pdf(uf, category, user_id)
+            result = await get_document_service().upload_and_process_pdf(uf, category, user_id)
         
         if result.get("success"):
             file_status_store[file_id].update({
@@ -387,10 +394,13 @@ async def health_check():
     """
     try:
         # Quick health check
-        result = await document_service.get_system_stats()
+        result = await get_document_service().get_system_stats()
+        processing_status = (result.get("processing_stats") or {}).get("processor_status")
+        search_status = (result.get("search_health") or {}).get("engine_status")
+        is_healthy = processing_status == "healthy" and search_status == "healthy"
         
         return {
-            "status": "healthy" if result.get("success") else "degraded",
+            "status": "healthy" if is_healthy else "degraded",
             "timestamp": datetime.now().isoformat(),
             "message": "Document processing system operational"
         }

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { signSession, verifySession } from "@/lib/jwt";
+import { getBasePath } from "@/lib/basePath";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,11 @@ export async function GET(req: Request) {
 
   // 检查是否有重定向参数
   const url = new URL(req.url);
-  const redirectTo = url.searchParams.get("redirect") || "/";
+  const basePath = getBasePath();
+  const defaultRedirect = basePath ? `${basePath}/` : "/";
+  const rawRedirect = url.searchParams.get("redirect") || defaultRedirect;
+  const redirectTo = rawRedirect.startsWith("/") ? rawRedirect : defaultRedirect;
+  const cookiePath = basePath || "/";
 
   if (existing) {
     const uid = await verifySession(existing);
@@ -23,7 +28,7 @@ export async function GET(req: Request) {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
-        path: "/",
+        path: cookiePath,
         maxAge,
       });
       return res;
@@ -40,10 +45,9 @@ export async function GET(req: Request) {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    path: "/",
+    path: cookiePath,
     maxAge,
   });
   return res;
 }
-
 

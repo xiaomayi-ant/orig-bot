@@ -22,3 +22,4 @@ frontend/ENV_TEMPLATE.md
 backend/ENV_TEMPLATE.md
 
 *.tsbuildinfo
+nginx.md

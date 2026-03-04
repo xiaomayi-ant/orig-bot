@@ -126,6 +126,45 @@ def get_milvus_config() -> dict:
     } 
 
 
+def _is_non_empty(value: Optional[str]) -> bool:
+    return bool(value and str(value).strip())
+
+
+def is_mysql_configured() -> bool:
+    """Whether required MySQL connection env vars are present."""
+    return all(
+        [
+            _is_non_empty(settings.mysql_host),
+            _is_non_empty(settings.mysql_user),
+            _is_non_empty(settings.mysql_password),
+            _is_non_empty(settings.mysql_database),
+        ]
+    )
+
+
+def is_pg_configured() -> bool:
+    """Whether PostgreSQL DSN is configured."""
+    return _is_non_empty(settings.pg_dsn)
+
+
+def is_neo4j_configured() -> bool:
+    """Whether Neo4j connection env vars are present."""
+    return all(
+        [
+            _is_non_empty(settings.neo4j_uri),
+            _is_non_empty(settings.neo4j_user),
+            _is_non_empty(settings.neo4j_password),
+        ]
+    )
+
+
+def is_vector_search_configured() -> bool:
+    """Whether vector search prerequisites are configured."""
+    has_milvus = _is_non_empty(settings.milvus_address)
+    has_embedding_key = _is_non_empty(settings.openai_embed_api_key) or _is_non_empty(settings.openai_api_key)
+    return has_milvus and has_embedding_key
+
+
 # LLM factory: centralize chat LLM construction（严格按 provider 选择变量）
 def get_chat_llm(temperature: float = 0.1, **kwargs):
     """Return a ChatOpenAI-compatible LLM based on current settings.

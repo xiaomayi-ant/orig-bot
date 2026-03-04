@@ -6,6 +6,7 @@ import { AssistantRuntimeProvider, AttachmentAdapter, PendingAttachment, Complet
 import { useLangGraphRuntime, LangChainMessage } from "@assistant-ui/react-langgraph";
 import { createThread, sendMessage, visionStream, uploadAsync } from "@/lib/chatApi";
 import { normalizeImageSrc as sharedNormalizeImageSrc } from "@/lib/utils";
+import { apiPath, withBasePath } from "@/lib/basePath";
 
 // 定义本地附件状态接口
 interface LocalAttachment {
@@ -64,7 +65,7 @@ export function MyRuntimeProvider({
     if (conversationId) {
       (async () => {
         try {
-          const r = await fetch(`/api/conversations/${conversationId}`);
+          const r = await fetch(apiPath(`/api/conversations/${conversationId}`));
           if (r.ok) {
             const info = await r.json();
             if (typeof info?.threadId === "string" && info.threadId) {
@@ -172,7 +173,7 @@ export function MyRuntimeProvider({
                   return {
                     ...a,
                     fileId: r.fileId,
-                    url: `/api/preview/image?fileId=${encodeURIComponent(r.fileId)}`,
+                    url: apiPath(`/api/preview/image?fileId=${encodeURIComponent(r.fileId)}`),
                     signedUrl: r.signedUrl || r.url,
                     status: { type: 'complete' },
                   } as any;
@@ -249,7 +250,7 @@ export function MyRuntimeProvider({
           const formData = new FormData();
           formData.append("file", attachment.file);
           formData.append("threadId", threadIdRef.current || "");
-          const response = await fetch("/api/upload?mode=async", { method: "POST", body: formData });
+          const response = await fetch(apiPath("/api/upload?mode=async"), { method: "POST", body: formData });
           if (!response.ok) throw new Error(`图片上传失败: ${response.statusText}`);
           uploadResult = await response.json();
           clearInterval(progressInterval);
@@ -259,7 +260,7 @@ export function MyRuntimeProvider({
           let signedUrl = uploadResult.signedUrl || uploadResult.url;
           if (!uploadResult.signedUrl && signKey) {
             try {
-              const signResponse = await fetch('/api/files/sign', {
+              const signResponse = await fetch(apiPath('/api/files/sign'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ key: signKey, expiresSec: 3600 })
@@ -289,7 +290,7 @@ export function MyRuntimeProvider({
           } as any;
 
           // 额外添加 url 属性（用于前端预览，使用本地预览端点）
-          (completeAttachment as any).url = `/api/preview/image?fileId=${encodeURIComponent(uploadResult.fileId)}`;
+          (completeAttachment as any).url = apiPath(`/api/preview/image?fileId=${encodeURIComponent(uploadResult.fileId)}`);
           (completeAttachment as any).signedUrl = signedUrl;
 
           console.log(`[SEND] 📋 双 URL 策略验证:`);
@@ -303,7 +304,7 @@ export function MyRuntimeProvider({
           formData.append("file", attachment.file);
           formData.append("threadId", threadIdRef.current || "");
 
-          const response = await fetch("/api/upload?mode=async", {
+          const response = await fetch(apiPath("/api/upload?mode=async"), {
             method: "POST",
             body: formData,
           });
@@ -331,7 +332,7 @@ export function MyRuntimeProvider({
           formData.append("file", attachment.file);
           formData.append("threadId", threadIdRef.current || "");
           
-          const response = await fetch("/api/upload?mode=async", {
+          const response = await fetch(apiPath("/api/upload?mode=async"), {
             method: "POST",
             body: formData,
           });
@@ -355,7 +356,7 @@ export function MyRuntimeProvider({
             content: [
               { type: "text", text: (
                 attachment.contentType === "application/pdf"
-                  ? `📄 [${attachment.name}](/api/preview/pdf?fileId=${encodeURIComponent(uploadResult.fileId)})`
+                  ? `📄 [${attachment.name}](${apiPath(`/api/preview/pdf?fileId=${encodeURIComponent(uploadResult.fileId)}`)})`
                   : `📄 [${attachment.name}](${uploadResult.url})`
               ) },
             ],
@@ -371,9 +372,9 @@ export function MyRuntimeProvider({
                   fileId: uploadResult.fileId,
                   // 本地状态中的可点击地址也切换为预览端点，避免直链在私有桶下失效
                   url: (a.contentType?.startsWith("image/")
-                    ? `/api/preview/image?fileId=${encodeURIComponent(uploadResult.fileId)}`
+                    ? apiPath(`/api/preview/image?fileId=${encodeURIComponent(uploadResult.fileId)}`)
                     : (a.contentType === "application/pdf"
-                        ? `/api/preview/pdf?fileId=${encodeURIComponent(uploadResult.fileId)}`
+                        ? apiPath(`/api/preview/pdf?fileId=${encodeURIComponent(uploadResult.fileId)}`)
                         : uploadResult.url
                       )
                   ),
@@ -437,7 +438,7 @@ export function MyRuntimeProvider({
         console.log(`[REMOVE] 删除参数:`, { fileId, threadId: currentThreadId, hasThreadId: !!currentThreadId });
         
         // 使用真实API删除文件
-        const response = await fetch(`/api/files/${fileId}`, {
+        const response = await fetch(apiPath(`/api/files/${fileId}`), {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ threadId: currentThreadId }),
@@ -740,7 +741,7 @@ export function MyRuntimeProvider({
 
                     // 调用前端代理，透传到后端审批接口
                     try {
-                      const resp = await fetch('/api/tools/approval', {
+                      const resp = await fetch(apiPath('/api/tools/approval'), {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -866,7 +867,7 @@ export function MyRuntimeProvider({
                   const fileId = m?.[1] ? decodeURIComponent(m[1]) : undefined;
                   if (fileId) {
                     try {
-                      const resp = await fetch(`/api/files/${encodeURIComponent(fileId)}`);
+                      const resp = await fetch(apiPath(`/api/files/${encodeURIComponent(fileId)}`));
                       if (resp.ok) {
                         const data = await resp.json().catch(() => ({} as any));
                         if (typeof data?.url === 'string' && data.url.startsWith('http')) {
@@ -962,7 +963,7 @@ export function MyRuntimeProvider({
           if (!conversationId) {
             console.log(`[STREAM] 首页场景（附件）：创建新会话`);
             try {
-              const response = await fetch('/api/conversations', {
+              const response = await fetch(apiPath('/api/conversations'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title: '新聊天', threadId: currentThreadId }),
@@ -974,7 +975,7 @@ export function MyRuntimeProvider({
                 console.log(`[STREAM] 创建新会话成功（附件）:`, { conversationId: finalConversationId, threadId: finalThreadId });
                 
                 // 同页：仅替换 URL，继续在本页流式
-                try { window.history.replaceState({}, '', `/chat/${finalConversationId}?tid=${encodeURIComponent(String(finalThreadId))}`); } catch {}
+                try { window.history.replaceState({}, '', withBasePath(`/chat/${finalConversationId}?tid=${encodeURIComponent(String(finalThreadId))}`)); } catch {}
                 // 方案C：上下文层已切换，无需补派发
               } else {
                 console.error(`[STREAM] 创建会话失败（附件）:`, response.status);
@@ -1010,7 +1011,7 @@ export function MyRuntimeProvider({
           if (!conversationId) {
             console.log(`[STREAM] 首页场景：创建新会话`);
             try {
-              const response = await fetch('/api/conversations', {
+              const response = await fetch(apiPath('/api/conversations'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title: '新聊天', threadId: currentThreadId }),
@@ -1022,7 +1023,7 @@ export function MyRuntimeProvider({
                 console.log(`[STREAM] 创建新会话成功:`, { conversationId: finalConversationId, threadId: finalThreadId });
                 
                 // 同页：仅替换 URL，继续在本页流式
-                try { window.history.replaceState({}, '', `/chat/${finalConversationId}?tid=${encodeURIComponent(String(finalThreadId))}`); } catch {}
+                try { window.history.replaceState({}, '', withBasePath(`/chat/${finalConversationId}?tid=${encodeURIComponent(String(finalThreadId))}`)); } catch {}
                 // 方案C：上下文层已切换，无需补派发
               } else {
                 console.error(`[STREAM] 创建会话失败:`, response.status);
@@ -1170,4 +1171,3 @@ export function MyRuntimeProvider({
 // 移除 MessageAppender 组件，返回到原始的 UI 更新机制
 
 // 组件外不做实例级日志
-

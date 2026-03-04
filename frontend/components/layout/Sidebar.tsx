@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { SquarePen, Search, Images, Settings, ChevronsLeft, ChevronsRight, MoreHorizontal, Trash2, Share } from "lucide-react";
 import { getAllSummaries, onSummariesChanged, type ChatSummary, getDraftId, setDraftId, removeChat } from "@/lib/chatHistory";
 import { DropdownMenu, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { apiPath, withBasePath } from "@/lib/basePath";
 
 export function Sidebar() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export function Sidebar() {
   async function fetchFirstPage() {
     try {
       setLoading(true);
-      const resp = await fetch(`/api/conversations?take=30`, { cache: "no-store" });
+      const resp = await fetch(apiPath(`/api/conversations?take=30`), { cache: "no-store" });
       if (resp.ok) {
         const data = await resp.json();
         setServerItems(data?.items || []);
@@ -76,7 +77,10 @@ export function Sidebar() {
     if (!nextCursor || loading) return;
     try {
       setLoading(true);
-      const resp = await fetch(`/api/conversations?take=30&cursor=${encodeURIComponent(nextCursor)}`, { cache: "no-store" });
+      const resp = await fetch(
+        apiPath(`/api/conversations?take=30&cursor=${encodeURIComponent(nextCursor)}`),
+        { cache: "no-store" },
+      );
       if (resp.ok) {
         const data = await resp.json();
         setServerItems((prev) => [...prev, ...(data?.items || [])]);
@@ -108,7 +112,7 @@ export function Sidebar() {
       try {
 
         
-        const response = await fetch(`/api/conversations/${id}`, {
+        const response = await fetch(apiPath(`/api/conversations/${id}`), {
           method: 'DELETE',
           headers: { 
             'Cache-Control': 'no-cache'
@@ -174,7 +178,7 @@ export function Sidebar() {
     
     try {
       // 生成分享链接
-      const shareUrl = `${window.location.origin}/chat/${id}`;
+      const shareUrl = `${window.location.origin}${withBasePath(`/chat/${id}`)}`;
       
       if (navigator.share) {
         // 使用原生分享API（移动设备）
@@ -191,7 +195,7 @@ export function Sidebar() {
     } catch (error) {
       console.error("分享失败:", error);
       // 降级方案：手动复制
-      const shareUrl = `${window.location.origin}/chat/${id}`;
+      const shareUrl = `${window.location.origin}${withBasePath(`/chat/${id}`)}`;
       try {
         await navigator.clipboard.writeText(shareUrl);
         alert("链接已复制到剪贴板");
@@ -254,7 +258,7 @@ export function Sidebar() {
                 onClick={async () => {
                   try {
                     console.log('[SIDEBAR] new-chat: start', { href: location.href });
-                    const resp = await fetch('/api/conversations', {
+                    const resp = await fetch(apiPath('/api/conversations'), {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ title: '新聊天' }),

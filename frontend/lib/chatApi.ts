@@ -1,10 +1,11 @@
 import { ThreadState, Client } from "@langchain/langgraph-sdk";
 import { LangChainMessage } from "@assistant-ui/react-langgraph";
+import { apiPath } from "@/lib/basePath";
 
 const createClient = () => {
   const apiUrl =
     process.env["NEXT_PUBLIC_LANGGRAPH_API_URL"] ||
-    new URL("/api", window.location.href).href;
+    new URL(apiPath("/api"), window.location.origin).href;
   return new Client({
     apiUrl,
   });
@@ -47,11 +48,11 @@ export const sendMessage = async (params: {
   messages: LangChainMessage[];
   signal?: AbortSignal;
 }) => {
-  console.log(`[chatApi] 发送消息到: /api/chat/stream`);
+  console.log(`[chatApi] 发送消息到: ${apiPath("/api/chat/stream")}`);
   console.log(`[chatApi] 会话: ${params.conversationId}, 线程: ${params.threadId}`);
   console.log(`[chatApi] 消息内容:`, params.messages);
   
-  const response = await fetch(`/api/chat/stream`, {
+  const response = await fetch(apiPath(`/api/chat/stream`), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -182,7 +183,7 @@ export const visionStream = async (params: {
   formData.append("image", params.file);
   formData.append("question", params.question || "请描述这张图片");
 
-  const response = await fetch(`/api/vision-qa`, {
+  const response = await fetch(apiPath(`/api/vision-qa`), {
     method: "POST",
     body: formData,
   });
@@ -257,7 +258,7 @@ export const uploadAsync = async (file: File, threadId?: string): Promise<{
   // 优先：图片走后端签发的直传 PUT，绕过 Next 中转
   if (file.type.startsWith('image/')) {
     // 1) 申请预签名 PUT 与 GET（signedUrl）
-    const presign = await fetch(`/api/oss/presign-upload`, {
+    const presign = await fetch(apiPath(`/api/oss/presign-upload`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ filename: file.name, contentType: file.type, category: 'images' })
@@ -284,7 +285,7 @@ export const uploadAsync = async (file: File, threadId?: string): Promise<{
   const fd = new FormData();
   fd.append('file', file);
   if (threadId) fd.append('threadId', threadId);
-  const response = await fetch(`/api/upload?mode=async`, { method: 'POST', body: fd });
+  const response = await fetch(apiPath(`/api/upload?mode=async`), { method: 'POST', body: fd });
   if (!response.ok) throw new Error(`Upload failed: ${response.status}`);
   const result = await response.json();
   console.log(`[chatApi] 异步上传结果:`, result);
@@ -307,7 +308,7 @@ export const pollFileStatus = async (fileId: string): Promise<{
 }> => {
   console.log(`[chatApi] 查询文件状态: ${fileId}`);
   
-  const response = await fetch(`/api/documents/status?fileId=${fileId}`);
+  const response = await fetch(apiPath(`/api/documents/status?fileId=${fileId}`));
   
   if (!response.ok) {
     throw new Error(`Status query failed: ${response.status}`);

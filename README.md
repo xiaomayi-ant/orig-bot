@@ -96,7 +96,7 @@ cp frontend/env.example frontend/.env
 
 | Scope | Keys |
 | --- | --- |
-| Frontend | `DATABASE_URL`, `LANGGRAPH_API_URL`, `JWT_SECRET` |
+| Frontend | `NEXT_PUBLIC_BASE_PATH`, `DATABASE_URL`, `LANGGRAPH_API_URL`, `JWT_SECRET` |
 | Backend | `PG_DSN`, `JWT_SECRET`, `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE` |
 | LLM | `LLM_PROVIDER` 对应的 API Key（`DEEPSEEK_API_KEY` 或 `OPENAI_API_KEY`） |
 
