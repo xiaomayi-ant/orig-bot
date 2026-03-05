@@ -1,6 +1,6 @@
 "use client";
 
-import { type ComponentType, useEffect, useRef, useState } from "react";
+import { type ComponentType, useCallback, useEffect, useRef, useState } from "react";
 import {
   Thread,
   useThread,
@@ -497,11 +497,28 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     } catch {}
   };
 
+  const followBottomIfNeeded = useCallback((behavior: ScrollBehavior = "auto") => {
+    if (!isNearBottom) return;
+    scrollToBottomWithOffset(behavior);
+  }, [isNearBottom]);
+
   // 监听消息长度变化，控制isChatting状态
   const messages = useThread((t) => t.messages);
   useEffect(() => {
     setIsChatting((messages as any[])?.length > 0);
   }, [messages]);
+
+  // Keep viewport following streaming output when user is already near bottom.
+  useEffect(() => {
+    followBottomIfNeeded("auto");
+  }, [messages, isStreaming, followBottomIfNeeded]);
+
+  // Some runtimes update message text without changing list length; poll lightly while streaming.
+  useEffect(() => {
+    if (!isStreaming || !isNearBottom) return;
+    const timer = setInterval(() => followBottomIfNeeded("auto"), 120);
+    return () => clearInterval(timer);
+  }, [isStreaming, isNearBottom, followBottomIfNeeded]);
 
   // 恢复观察者包装器，确保props正确传递
   const withObserver = (Component: any) => {

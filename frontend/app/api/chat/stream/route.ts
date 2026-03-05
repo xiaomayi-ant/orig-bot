@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { withAuthHeaders } from "@/lib/withAuthHeaders";
 import { verifySession } from "@/lib/jwt";
 import { randomUUID } from "node:crypto";
+import { Agent } from "undici";
 import { shouldUseVision, prepareVisionMessage, extractText } from "@/lib/messageAnalyzer";
 import { apiPath } from "@/lib/basePath";
 
@@ -11,6 +12,11 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 type UnknownRecord = Record<string, any>;
+const upstreamAgent = new Agent({
+  // Prevent undici default 300s body timeout from aborting long SSE streams.
+  bodyTimeout: 0,
+  headersTimeout: 0,
+});
 
 function pickConversationIdFromBody(body: UnknownRecord): string | null {
   const id = typeof body?.conversationId === "string" ? body.conversationId : null;
@@ -212,6 +218,7 @@ export async function POST(req: NextRequest) {
     method: "POST",
     headers: { ...apiHeaders, Connection: 'keep-alive' },
     body: JSON.stringify({ input: inputPayload }),
+    dispatcher: upstreamAgent,
     // 将前端中止透传到上游，避免多余占用
     signal: (req as any).signal,
   });
