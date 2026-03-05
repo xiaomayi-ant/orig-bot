@@ -487,7 +487,12 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     }
   };
 
-  const scrollToBottomWithOffset = (behavior: ScrollBehavior = "smooth") => {
+  const setChatContainer = useCallback((node: HTMLElement | null) => {
+    chatContainerRef.current = node;
+    setScrollContainer(node);
+  }, []);
+
+  const scrollToBottomWithOffset = useCallback((behavior: ScrollBehavior = "smooth") => {
     try {
       const container = chatContainerRef.current;
       if (!container) return;
@@ -495,12 +500,12 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
       const targetTop = container.scrollHeight - container.clientHeight - offset;
       container.scrollTo({ top: Math.max(targetTop, 0), behavior });
     } catch {}
-  };
+  }, []);
 
   const followBottomIfNeeded = useCallback((behavior: ScrollBehavior = "auto") => {
     if (!isNearBottom) return;
     scrollToBottomWithOffset(behavior);
-  }, [isNearBottom]);
+  }, [isNearBottom, scrollToBottomWithOffset]);
 
   // 监听消息长度变化，控制isChatting状态
   const messages = useThread((t) => t.messages);
@@ -615,13 +620,6 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
 
   // 滚动容器/底部哨兵
   useEffect(() => {
-    try {
-      const start = rootRef.current as HTMLElement | null; let node = start?.parentElement ?? null; let found: HTMLElement | null = null;
-      while (node) { const style = window.getComputedStyle(node); if ((style.overflowY === "auto" || style.overflowY === "scroll")) { found = node as HTMLElement; break; } node = node.parentElement; }
-      if (found) { chatContainerRef.current = found; setScrollContainer(found); }
-    } catch {}
-  }, []);
-  useEffect(() => {
     try { if (!endRef.current) return; const observer = new IntersectionObserver((entries) => { const entry = entries[0]; setIsNearBottom(entry?.isIntersecting ?? true); }, { threshold: 0.01, root: scrollContainer as Element | null }); observer.observe(endRef.current); return () => observer.disconnect(); } catch {}
   }, [endRef, scrollContainer]);
 
@@ -678,7 +676,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   if (preloadedMessages.length > 0) {
     return (
       <div className="flex h-full flex-col" ref={rootRef}>
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" ref={setChatContainer}>
           <div className="w-full h-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
             <div className="py-8"><PreloadedMessages /></div>
             <Thread
@@ -730,7 +728,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
 
   return (
     <div className="flex h-full flex-col" ref={rootRef}>
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" ref={setChatContainer}>
         <div className="w-full h-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
           <Thread
             key={id}
@@ -758,4 +756,3 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     </div>
   );
 }
-
