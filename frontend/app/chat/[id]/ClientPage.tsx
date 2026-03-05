@@ -492,6 +492,38 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     setScrollContainer(node);
   }, []);
 
+  const resolveScrollableContainer = useCallback(() => {
+    try {
+      const root = rootRef.current;
+      if (!root) return;
+
+      // assistant-ui 内部真实滚动层（若存在，优先使用）
+      const viewport = root.querySelector(".aui-thread-viewport") as HTMLElement | null;
+      if (viewport) {
+        setChatContainer(viewport);
+        return;
+      }
+
+      // 其次使用页面显式标注的聊天滚动容器
+      const local = root.querySelector("[data-chat-scroll-container='true']") as HTMLElement | null;
+      if (local) {
+        setChatContainer(local);
+        return;
+      }
+
+      // 最后回退到最近可滚动祖先
+      let node: HTMLElement | null = root.parentElement;
+      while (node) {
+        const style = window.getComputedStyle(node);
+        if (style.overflowY === "auto" || style.overflowY === "scroll") {
+          setChatContainer(node);
+          return;
+        }
+        node = node.parentElement;
+      }
+    } catch {}
+  }, [setChatContainer]);
+
   const scrollToBottomWithOffset = useCallback((behavior: ScrollBehavior = "smooth") => {
     try {
       const container = chatContainerRef.current;
@@ -509,9 +541,10 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
 
   // 监听消息长度变化，控制isChatting状态
   const messages = useThread((t) => t.messages);
+  const messageCount = Array.isArray(messages) ? (messages as any[]).length : 0;
   useEffect(() => {
-    setIsChatting((messages as any[])?.length > 0);
-  }, [messages]);
+    setIsChatting(messageCount > 0);
+  }, [messageCount]);
 
   // Keep viewport following streaming output when user is already near bottom.
   useEffect(() => {
@@ -618,10 +651,53 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   }, []);
   useEffect(() => { try { const el = document.getElementById("composer-host-center"); if (el) setCenterHost(el); } catch {} }, []);
 
-  // 滚动容器/底部哨兵
+  // 滚动容器解析：首次 + 短延迟二次解析（等待 Thread 内部结构挂载）
   useEffect(() => {
-    try { if (!endRef.current) return; const observer = new IntersectionObserver((entries) => { const entry = entries[0]; setIsNearBottom(entry?.isIntersecting ?? true); }, { threshold: 0.01, root: scrollContainer as Element | null }); observer.observe(endRef.current); return () => observer.disconnect(); } catch {}
-  }, [endRef, scrollContainer]);
+    resolveScrollableContainer();
+    const t1 = window.setTimeout(resolveScrollableContainer, 0);
+    const t2 = window.setTimeout(resolveScrollableContainer, 200);
+    const t3 = window.setTimeout(resolveScrollableContainer, 600);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [resolveScrollableContainer, id, preloadedMessages.length, messageCount]);
+
+  // 基于滚动距离维护 near-bottom 状态（比 IntersectionObserver 更稳定）
+  useEffect(() => {
+    const container = scrollContainer;
+    if (!container) return;
+    const updateNearBottom = () => {
+      try {
+        const offset = getComposerHeight() + BUFFER_PX + 24;
+        const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
+        setIsNearBottom(distance <= offset);
+      } catch {}
+    };
+    updateNearBottom();
+    container.addEventListener("scroll", updateNearBottom, { passive: true });
+    return () => container.removeEventListener("scroll", updateNearBottom);
+  }, [scrollContainer]);
+
+  // 兜底：某些环境中滚轮不会驱动目标容器，手动转发 delta
+  useEffect(() => {
+    const root = rootRef.current;
+    const container = scrollContainer;
+    if (!root || !container) return;
+    const onWheel = (e: WheelEvent) => {
+      try {
+        const target = e.target as HTMLElement | null;
+        if (!target) return;
+        if (target.closest("#composer-host, .aui-composer-root, textarea, input, [contenteditable='true']")) return;
+        if (container.scrollHeight <= container.clientHeight + 1) return;
+        container.scrollTop += e.deltaY;
+        e.preventDefault();
+      } catch {}
+    };
+    root.addEventListener("wheel", onWheel, { passive: false });
+    return () => root.removeEventListener("wheel", onWheel);
+  }, [scrollContainer]);
 
   // 预加载静态渲染（有历史）
   function PreloadedMessages() {
@@ -676,7 +752,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   if (preloadedMessages.length > 0) {
     return (
       <div className="flex h-full flex-col" ref={rootRef}>
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" ref={setChatContainer}>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" ref={setChatContainer} data-chat-scroll-container="true">
           <div className="w-full h-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
             <div className="py-8"><PreloadedMessages /></div>
             <Thread
@@ -728,7 +804,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
 
   return (
     <div className="flex h-full flex-col" ref={rootRef}>
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" ref={setChatContainer}>
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" ref={setChatContainer} data-chat-scroll-container="true">
         <div className="w-full h-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
           <Thread
             key={id}
