@@ -35,8 +35,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Sidebar />
       </aside>
 
-      {/* 右侧主区：不直接滚动，具体页面自行声明唯一滚动容器 */}
-      <main className="relative overflow-hidden min-w-0">
+      {/* 右侧主区：作为唯一滚动容器 */}
+      <main className="relative overflow-y-auto min-w-0">
         <div className="min-h-full flex flex-col">
           <Topbar />
           <div className="flex-1 min-h-0 flex flex-col py-8">{children}</div>
