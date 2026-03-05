@@ -32,10 +32,17 @@ async function handleRequest(req: NextRequest, method: string) {
       ? `?${searchParams.toString()}`
       : "";
 
+    const authHeader = req.headers.get("authorization");
+    const sid = req.cookies.get("sid")?.value;
+    const forwardAuth = authHeader || (sid ? `Bearer ${sid}` : "");
+    const contentType = req.headers.get("content-type") || "";
+
     const options: RequestInit = {
       method,
       headers: {
         "x-api-key": process.env["LANGCHAIN_API_KEY"] || "",
+        ...(forwardAuth ? { Authorization: forwardAuth } : {}),
+        ...(contentType ? { "Content-Type": contentType } : {}),
       },
     };
 
