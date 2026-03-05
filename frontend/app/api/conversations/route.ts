@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { withAuthHeaders } from "@/lib/withAuthHeaders";
 import { randomUUID } from "node:crypto";
+import { signSession } from "@/lib/jwt";
+import { getBasePath } from "@/lib/basePath";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,8 +79,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const title: string = (typeof body?.title === "string" && body.title.trim()) || "新聊天";
     const headers = await withAuthHeaders();
-    const sid = (headers["Authorization"] || "").replace(/^Bearer\s+/i, "");
-    const userId = sid ? await (await import("@/lib/jwt")).verifySession(sid) : null;
+    let sid = (headers["Authorization"] || "").replace(/^Bearer\s+/i, "");
+    let userId = sid ? await (await import("@/lib/jwt")).verifySession(sid) : null;
+    let issuedSid: string | null = null;
+
+    // Bootstrap guest session when cookie is missing/invalid (common in first-load incognito).
+    if (!userId) {
+      userId = typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `u_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      issuedSid = await signSession(userId, 30 * 24 * 3600);
+      sid = issuedSid;
+    }
 
     // 创建 threadId（服务端调用 LangGraph）
     async function createServerThread(): Promise<string | null> {
@@ -106,9 +118,6 @@ export async function POST(req: NextRequest) {
     }
 
     const threadIdReq = (typeof body?.threadId === "string" && body.threadId) || null;
-    if (!userId) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
     const threadId = threadIdReq ?? (await createServerThread());
 
     if (!threadId) {
@@ -126,7 +135,17 @@ export async function POST(req: NextRequest) {
       select: { id: true, title: true, updatedAt: true, threadId: true },
     });
 
-    return NextResponse.json(conv, { status: 201 });
+    const res = NextResponse.json(conv, { status: 201 });
+    if (issuedSid) {
+      res.cookies.set("sid", issuedSid, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: getBasePath() || "/",
+        maxAge: 30 * 24 * 3600,
+      });
+    }
+    return res;
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? "Internal Server Error" }, { status: 500 });
   }
