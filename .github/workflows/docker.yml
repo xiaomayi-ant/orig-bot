@@ -3,6 +3,13 @@ name: build-and-push
 on:
   push:
     branches: [ main ]
+    paths:
+      - '.github/workflows/docker.yml'
+      - 'backend/**'
+      - 'frontend/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
   workflow_dispatch: {}
 
 permissions:
