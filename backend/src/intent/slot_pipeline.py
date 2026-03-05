@@ -16,7 +16,10 @@ from typing import Any, Dict, List, Optional, Tuple
 from datetime import datetime
 
 from openai import OpenAI
-import hanlp
+try:
+	import hanlp
+except Exception:
+	hanlp = None  # type: ignore
 import ahocorasick
 from .config_utils import get_config, parse_bool
 from ..core.config import settings
@@ -137,13 +140,24 @@ class Gazetteer:
 
 class NPPhraseExtractor:
 	def __init__(self) -> None:
-		self.tok = hanlp.load(hanlp.pretrained.tok.FINE_ELECTRA_SMALL_ZH)
-		self.pos_tagger = hanlp.load(hanlp.pretrained.pos.CTB9_POS_ELECTRA_SMALL)
-		self.pos_ok = True
+		self.tok = None
+		self.pos_tagger = None
+		self.pos_ok = False
+		if hanlp is None:
+			logging.warning("HanLP is not installed, intent NP extraction disabled.")
+			return
+		try:
+			self.tok = hanlp.load(hanlp.pretrained.tok.FINE_ELECTRA_SMALL_ZH)
+			self.pos_tagger = hanlp.load(hanlp.pretrained.pos.CTB9_POS_ELECTRA_SMALL)
+			self.pos_ok = True
+		except Exception:
+			logging.exception("Failed to initialize HanLP, intent NP extraction disabled.")
 
 	def analyze(self, text: str) -> Dict[str, Any]:
 		res = {"tokens": [], "pos": [], "np_chunks": []}
 		try:
+			if not self.pos_ok or self.tok is None or self.pos_tagger is None:
+				return res
 			tokens: List[str] = self.tok(text)
 			res["tokens"] = tokens
 			if self.pos_ok and tokens:
