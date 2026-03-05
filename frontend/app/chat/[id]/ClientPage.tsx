@@ -497,23 +497,18 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
       const root = rootRef.current;
       if (!root) return;
 
-      // 优先使用页面显式标注的聊天滚动容器，避免选中库内部非滚动层
+      // assistant-ui 内部真实滚动层（若存在，优先使用）
+      const viewport = root.querySelector(".aui-thread-viewport") as HTMLElement | null;
+      if (viewport) {
+        setChatContainer(viewport);
+        return;
+      }
+
+      // 其次使用页面显式标注的聊天滚动容器
       const local = root.querySelector("[data-chat-scroll-container='true']") as HTMLElement | null;
       if (local) {
         setChatContainer(local);
         return;
-      }
-
-      // assistant-ui 内部视口仅在可滚动时作为候选
-      const viewport = root.querySelector(".aui-thread-viewport") as HTMLElement | null;
-      if (viewport) {
-        const style = window.getComputedStyle(viewport);
-        const scrollableByStyle = style.overflowY === "auto" || style.overflowY === "scroll";
-        const scrollableBySize = viewport.scrollHeight > viewport.clientHeight + 1;
-        if (scrollableByStyle || scrollableBySize) {
-          setChatContainer(viewport);
-          return;
-        }
       }
 
       // 最后回退到最近可滚动祖先
@@ -683,6 +678,25 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     updateNearBottom();
     container.addEventListener("scroll", updateNearBottom, { passive: true });
     return () => container.removeEventListener("scroll", updateNearBottom);
+  }, [scrollContainer]);
+
+  // 兜底：某些环境中滚轮不会驱动目标容器，手动转发 delta
+  useEffect(() => {
+    const root = rootRef.current;
+    const container = scrollContainer;
+    if (!root || !container) return;
+    const onWheel = (e: WheelEvent) => {
+      try {
+        const target = e.target as HTMLElement | null;
+        if (!target) return;
+        if (target.closest("#composer-host, .aui-composer-root, textarea, input, [contenteditable='true']")) return;
+        if (container.scrollHeight <= container.clientHeight + 1) return;
+        container.scrollTop += e.deltaY;
+        e.preventDefault();
+      } catch {}
+    };
+    root.addEventListener("wheel", onWheel, { passive: false });
+    return () => root.removeEventListener("wheel", onWheel);
   }, [scrollContainer]);
 
   // 预加载静态渲染（有历史）
