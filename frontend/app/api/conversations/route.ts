@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
 import { withAuthHeaders } from "@/lib/withAuthHeaders";
 import { randomUUID } from "node:crypto";
@@ -77,8 +76,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const title: string = (typeof body?.title === "string" && body.title.trim()) || "新聊天";
-    const jar = await cookies();
-    const sid = jar.get("sid")?.value || "";
+    const headers = await withAuthHeaders();
+    const sid = (headers["Authorization"] || "").replace(/^Bearer\s+/i, "");
     const userId = sid ? await (await import("@/lib/jwt")).verifySession(sid) : null;
 
     // 创建 threadId（服务端调用 LangGraph）
@@ -107,7 +106,7 @@ export async function POST(req: NextRequest) {
     }
 
     const threadIdReq = (typeof body?.threadId === "string" && body.threadId) || null;
-    if (!sid && !threadIdReq) {
+    if (!userId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const threadId = threadIdReq ?? (await createServerThread());
