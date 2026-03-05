@@ -12,7 +12,6 @@ export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
 type UnknownRecord = Record<string, any>;
-type UndiciRequestInit = RequestInit & { dispatcher?: Agent };
 const upstreamAgent = new Agent({
   // Prevent undici default 300s body timeout from aborting long SSE streams.
   bodyTimeout: 0,
@@ -222,7 +221,7 @@ export async function POST(req: NextRequest) {
     dispatcher: upstreamAgent,
     // 将前端中止透传到上游，避免多余占用
     signal: (req as any).signal,
-  } as UndiciRequestInit);
+  });
   logp(`upstream-resp +${Date.now() - tUp0}ms`);
 
   if (!upstream.ok || !upstream.body) {
@@ -360,3 +359,4 @@ export async function POST(req: NextRequest) {
   logp('response-created');
   return res;
 }
+
