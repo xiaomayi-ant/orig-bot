@@ -497,29 +497,33 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
       const root = rootRef.current;
       if (!root) return;
 
-      // assistant-ui 内部视口自带原生滚动与自动跟随，优先作为唯一滚动层。
-      const viewport = root.querySelector(".aui-thread-viewport") as HTMLElement | null;
-      if (viewport) {
-        setChatContainer(viewport);
-        return;
-      }
+      const isScrollableElement = (node: HTMLElement | null) => {
+        if (!node) return false;
+        const style = window.getComputedStyle(node);
+        return style.overflowY === "auto" || style.overflowY === "scroll";
+      };
 
-      // 回退到页面显式标注的聊天容器。
-      const local = root.querySelector("[data-chat-scroll-container='true']") as HTMLElement | null;
-      if (local) {
-        setChatContainer(local);
-        return;
-      }
-
-      // 最后回退到最近可滚动祖先
+      // 优先使用页面真正负责滚动的祖先容器，避免误选 assistant-ui 内部视口。
       let node: HTMLElement | null = root.parentElement;
       while (node) {
-        const style = window.getComputedStyle(node);
-        if (style.overflowY === "auto" || style.overflowY === "scroll") {
+        if (isScrollableElement(node)) {
           setChatContainer(node);
           return;
         }
         node = node.parentElement;
+      }
+
+      // 回退到页面显式标注的聊天容器，但仅在它本身负责滚动时采用。
+      const local = root.querySelector("[data-chat-scroll-container='true']") as HTMLElement | null;
+      if (isScrollableElement(local)) {
+        setChatContainer(local);
+        return;
+      }
+
+      // assistant-ui 内部视口仅作为最后兜底。
+      const viewport = root.querySelector(".aui-thread-viewport") as HTMLElement | null;
+      if (isScrollableElement(viewport)) {
+        setChatContainer(viewport);
       }
     } catch {}
   }, [setChatContainer]);
