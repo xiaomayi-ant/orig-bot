@@ -497,7 +497,14 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
       const root = rootRef.current;
       if (!root) return;
 
-      // 固定使用页面显式标注的聊天滚动容器，避免与 assistant-ui 内部视口竞争。
+      // assistant-ui 内部视口自带原生滚动与自动跟随，优先作为唯一滚动层。
+      const viewport = root.querySelector(".aui-thread-viewport") as HTMLElement | null;
+      if (viewport) {
+        setChatContainer(viewport);
+        return;
+      }
+
+      // 回退到页面显式标注的聊天容器。
       const local = root.querySelector("[data-chat-scroll-container='true']") as HTMLElement | null;
       if (local) {
         setChatContainer(local);
@@ -726,7 +733,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   if (preloadedMessages.length > 0) {
     return (
       <div className="flex h-full flex-col" ref={rootRef}>
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" ref={setChatContainer} data-chat-scroll-container="true">
+        <div className="flex-1 min-h-0 overflow-hidden" ref={setChatContainer} data-chat-scroll-container="true">
           <div className="w-full h-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
             <div className="py-8"><PreloadedMessages /></div>
             <Thread
@@ -778,7 +785,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
 
   return (
     <div className="flex h-full flex-col" ref={rootRef}>
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" ref={setChatContainer} data-chat-scroll-container="true">
+      <div className="flex-1 min-h-0 overflow-hidden" ref={setChatContainer} data-chat-scroll-container="true">
         <div className="w-full h-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
           <Thread
             key={id}
