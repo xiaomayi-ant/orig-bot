@@ -529,15 +529,25 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     } catch {}
   }, [setChatContainer]);
 
+  const getScrollContainer = useCallback(() => {
+    if (chatContainerRef.current) return chatContainerRef.current;
+    const main = document.querySelector("main");
+    if (main) {
+      chatContainerRef.current = main;
+      setScrollContainer(main);
+    }
+    return main;
+  }, []);
+
   const scrollToBottomWithOffset = useCallback((behavior: ScrollBehavior = "smooth") => {
     try {
-      const container = chatContainerRef.current;
+      const container = getScrollContainer();
       if (!container) return;
       const offset = getComposerHeight() + BUFFER_PX;
       const targetTop = container.scrollHeight - container.clientHeight - offset;
       container.scrollTo({ top: Math.max(targetTop, 0), behavior });
     } catch {}
-  }, []);
+  }, [getScrollContainer]);
 
   const followBottomIfNeeded = useCallback((behavior: ScrollBehavior = "auto") => {
     if (!isNearBottom) return;
@@ -672,7 +682,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
 
   // 基于滚动距离维护 near-bottom 状态（比 IntersectionObserver 更稳定）
   useEffect(() => {
-    const container = scrollContainer;
+    const container = scrollContainer || getScrollContainer();
     if (!container) return;
     const updateNearBottom = () => {
       try {
@@ -686,9 +696,9 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     return () => container.removeEventListener("scroll", updateNearBottom);
   }, [scrollContainer]);
 
-  // 进入已有会话时默认锚定到最新消息，避免首次进入就被判定为“不在底部”。
+  // 进入已有会话时默认锚定到最新消息，避免首次进入就被判定为”不在底部”。
   useEffect(() => {
-    const container = scrollContainer;
+    const container = scrollContainer || getScrollContainer();
     const hasMessages = preloadedMessages.length > 0 || messageCount > 0;
     if (!container || !hasMessages || hasAnchoredInitialViewRef.current) return;
 
