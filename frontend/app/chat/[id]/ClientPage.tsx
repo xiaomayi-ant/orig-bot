@@ -476,6 +476,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   const [preloadedMessages, setPreloadedMessages] = useState<any[]>(initialMessages || []);
   const initialPendingMessageRef = useRef<string | null>(null);
   const hasSentInitialRef = useRef(false);
+  const hasAnchoredInitialViewRef = useRef(false);
 
   const getComposerHeight = () => {
     try {
@@ -579,6 +580,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   // URL 参数：欢迎态传递的消息（不立即发送）
   useEffect(() => {
     try {
+      hasAnchoredInitialViewRef.current = false;
       const urlParams = new URLSearchParams(window.location.search);
       const pendingMessage = urlParams.get('message');
       if (pendingMessage && pendingMessage.trim()) {
@@ -683,6 +685,33 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     container.addEventListener("scroll", updateNearBottom, { passive: true });
     return () => container.removeEventListener("scroll", updateNearBottom);
   }, [scrollContainer]);
+
+  // 进入已有会话时默认锚定到最新消息，避免首次进入就被判定为“不在底部”。
+  useEffect(() => {
+    const container = scrollContainer;
+    const hasMessages = preloadedMessages.length > 0 || messageCount > 0;
+    if (!container || !hasMessages || hasAnchoredInitialViewRef.current) return;
+
+    const shouldAnchor = container.scrollTop === 0 && container.scrollHeight > container.clientHeight;
+    if (!shouldAnchor) {
+      hasAnchoredInitialViewRef.current = true;
+      return;
+    }
+
+    hasAnchoredInitialViewRef.current = true;
+    const anchorToLatest = () => {
+      scrollToBottomWithOffset("auto");
+      setIsNearBottom(true);
+    };
+
+    anchorToLatest();
+    const rafId = window.requestAnimationFrame(anchorToLatest);
+    const timeoutId = window.setTimeout(anchorToLatest, 120);
+    return () => {
+      window.cancelAnimationFrame(rafId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [scrollContainer, preloadedMessages.length, messageCount, scrollToBottomWithOffset]);
 
   // 预加载静态渲染（有历史）
   function PreloadedMessages() {
