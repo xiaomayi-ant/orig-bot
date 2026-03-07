@@ -12,9 +12,7 @@ import {
 } from "@assistant-ui/react";
 import { makeMarkdownText } from "@assistant-ui/react-markdown";
 import { normalizeImageSrc } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { ImageViewer } from "@/components/ui/image-viewer";
-import { ChevronsDown } from "lucide-react";
 import { PriceSnapshotTool } from "@/components/tools/price-snapshot/PriceSnapshotTool";
 import { PurchaseStockTool } from "@/components/tools/purchase-stock/PurchaseStockTool";
 import { ToolFallback } from "@/components/tools/ToolFallback";
@@ -573,6 +571,19 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     return () => clearInterval(timer);
   }, [isStreaming, isNearBottom, followBottomIfNeeded]);
 
+  // Streaming markdown can reflow without changing the message list. Follow container growth directly.
+  useEffect(() => {
+    if (!isStreaming || !isNearBottom) return;
+    const container = scrollContainer || getScrollContainer();
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => {
+      followBottomIfNeeded("auto");
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [scrollContainer, getScrollContainer, isNearBottom, isStreaming, followBottomIfNeeded]);
+
   // 恢复观察者包装器，确保props正确传递
   const withObserver = (Component: any) => {
     const Wrapped = (props: any) => <Component {...props} />;
@@ -846,13 +857,6 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
         </div>
       </div>
       {composerHost && createPortal(<><CustomComposer /><ContentDisclaimer /></>, composerHost)}
-      {!isNearBottom && (
-        <div className="fixed right-6 bottom-24">
-          <Button type="button" onClick={() => scrollToBottomWithOffset()} className="rounded-full shadow-md pl-3 pr-3 h-10" aria-label="回到最新">
-            <ChevronsDown className="h-5 w-5 mr-2" /> 回到最新
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
