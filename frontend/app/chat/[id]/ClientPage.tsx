@@ -464,6 +464,8 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   const { isStreaming } = useChatUI();
   const endRef = useRef<HTMLDivElement | null>(null);
   const [isNearBottom, setIsNearBottom] = useState(true);
+  const userScrolledUpRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
   const chatContainerRef = useRef<HTMLElement | null>(null);
   const composerRef = useRef<HTMLDivElement | null>(null);
   const [composerHost, setComposerHost] = useState<HTMLElement | null>(null);
@@ -548,15 +550,19 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   }, [getScrollContainer]);
 
   const followBottomIfNeeded = useCallback((behavior: ScrollBehavior = "auto") => {
-    if (!isNearBottom) return;
+    if (userScrolledUpRef.current) return;
     scrollToBottomWithOffset(behavior);
-  }, [isNearBottom, scrollToBottomWithOffset]);
+  }, [scrollToBottomWithOffset]);
 
   // 监听消息长度变化，控制isChatting状态
   const messages = useThread((t) => t.messages);
   const messageCount = Array.isArray(messages) ? (messages as any[]).length : 0;
   useEffect(() => {
     setIsChatting(messageCount > 0);
+    // Reset scroll-up flag when conversation starts (new messages arrive)
+    if (messageCount > 0) {
+      userScrolledUpRef.current = false;
+    }
   }, [messageCount]);
 
   // Keep viewport following streaming output when user is already near bottom.
@@ -566,14 +572,14 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
 
   // Some runtimes update message text without changing list length; poll lightly while streaming.
   useEffect(() => {
-    if (!isStreaming || !isNearBottom) return;
+    if (!isStreaming) return;
     const timer = setInterval(() => followBottomIfNeeded("auto"), 120);
     return () => clearInterval(timer);
-  }, [isStreaming, isNearBottom, followBottomIfNeeded]);
+  }, [isStreaming, followBottomIfNeeded]);
 
   // Streaming markdown can reflow without changing the message list. Follow container growth directly.
   useEffect(() => {
-    if (!isStreaming || !isNearBottom) return;
+    if (!isStreaming) return;
     const container = scrollContainer || getScrollContainer();
     if (!container) return;
 
@@ -582,7 +588,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     });
     observer.observe(container);
     return () => observer.disconnect();
-  }, [scrollContainer, getScrollContainer, isNearBottom, isStreaming, followBottomIfNeeded]);
+  }, [scrollContainer, getScrollContainer, isStreaming, followBottomIfNeeded]);
 
   // 恢复观察者包装器，确保props正确传递
   const withObserver = (Component: any) => {
@@ -602,6 +608,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   useEffect(() => {
     try {
       hasAnchoredInitialViewRef.current = false;
+      userScrolledUpRef.current = false;
       const urlParams = new URLSearchParams(window.location.search);
       const pendingMessage = urlParams.get('message');
       if (pendingMessage && pendingMessage.trim()) {
@@ -691,21 +698,33 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     };
   }, [resolveScrollableContainer, id, preloadedMessages.length, messageCount]);
 
-  // 基于滚动距离维护 near-bottom 状态（比 IntersectionObserver 更稳定）
+  // 基于滚动距离维护 near-bottom 状态；用户主动上滚时标记，贴底时清除。
   useEffect(() => {
     const container = scrollContainer || getScrollContainer();
     if (!container) return;
-    const updateNearBottom = () => {
+    const onScroll = () => {
       try {
         const offset = getComposerHeight() + BUFFER_PX + 24;
         const distance = container.scrollHeight - container.scrollTop - container.clientHeight;
-        setIsNearBottom(distance <= offset);
+        const nearBottom = distance <= offset;
+        setIsNearBottom(nearBottom);
+
+        // Detect user scrolling UP: scrollTop decreased compared to last recorded position.
+        const scrolledUp = container.scrollTop < lastScrollTopRef.current - 2;
+        if (scrolledUp && !nearBottom) {
+          userScrolledUpRef.current = true;
+        }
+        if (nearBottom) {
+          userScrolledUpRef.current = false;
+        }
+        lastScrollTopRef.current = container.scrollTop;
       } catch {}
     };
-    updateNearBottom();
-    container.addEventListener("scroll", updateNearBottom, { passive: true });
-    return () => container.removeEventListener("scroll", updateNearBottom);
-  }, [scrollContainer]);
+    // Don't run immediately — avoid marking "not near bottom" before first scroll has a chance.
+    lastScrollTopRef.current = container.scrollTop;
+    container.addEventListener("scroll", onScroll, { passive: true });
+    return () => container.removeEventListener("scroll", onScroll);
+  }, [scrollContainer, getScrollContainer]);
 
   // 进入已有会话时默认锚定到最新消息，避免首次进入就被判定为”不在底部”。
   useEffect(() => {
