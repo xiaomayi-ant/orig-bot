@@ -27,12 +27,24 @@ services:
     environment:
       # Ensure frontend talks to backend container host/port from env (server-side fetching)
       LANGGRAPH_API_URL: http://backend:3001/api
+      # Limit Node.js heap to prevent OOM from leaking connections
+      NODE_OPTIONS: "--max-old-space-size=512"
     depends_on:
       - backend
       - prisma-migrate
     ports:
       - "3000:3000"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:3000/smart-bot/api/auth/guest"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 networks:
   default:

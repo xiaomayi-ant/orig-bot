@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
+const UPSTREAM_TIMEOUT_MS = 30_000;
+
 function getCorsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
@@ -50,10 +52,15 @@ async function handleRequest(req: NextRequest, method: string) {
       options.body = await req.text();
     }
 
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    options.signal = controller.signal;
+
     const res = await fetch(
       `${process.env["LANGGRAPH_API_URL"]}/${path}${queryString}`,
       options,
     );
+    clearTimeout(timer);
 
     return new NextResponse(res.body, {
       status: res.status,

@@ -14,9 +14,11 @@ export const fetchCache = "force-no-store";
 type UnknownRecord = Record<string, any>;
 type UndiciRequestInit = RequestInit & { dispatcher?: Agent };
 const upstreamAgent = new Agent({
-  // Prevent undici default 300s body timeout from aborting long SSE streams.
-  bodyTimeout: 0,
-  headersTimeout: 0,
+  // Allow long SSE streams but cap at 10 minutes to prevent zombie connections.
+  bodyTimeout: 600_000,
+  headersTimeout: 30_000,
+  keepAliveTimeout: 30_000,
+  keepAliveMaxTimeout: 60_000,
 });
 
 function pickConversationIdFromBody(body: UnknownRecord): string | null {
