@@ -62,7 +62,7 @@ export async function middleware(req: NextRequest) {
     const sid = req.cookies.get("sid")?.value;
     if (!sid) {
       maybeCleanup();
-      const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.ip || "unknown";
+      const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
       if (isRateLimited(ip)) {
         return new NextResponse("Too Many Requests", { status: 429 });
       }
