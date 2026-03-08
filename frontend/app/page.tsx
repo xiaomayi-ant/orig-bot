@@ -110,7 +110,9 @@ function HomeInner() {
         len: Array.isArray(messages) ? (messages as any[]).length : 'N/A',
       });
       if (!isNearBottom) return;
-      const container = chatContainerRef.current;
+      // Use <main> as scroll target — the inner chatContainerRef div doesn't
+      // actually overflow because flex constraints push overflow to <main>.
+      const container = document.querySelector("main") || chatContainerRef.current;
       if (!container) return;
       const offset = getComposerHeight() + BUFFER_PX;
       const targetTop = container.scrollHeight - container.clientHeight - offset;

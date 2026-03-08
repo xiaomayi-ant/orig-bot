@@ -495,6 +495,15 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
 
   const resolveScrollableContainer = useCallback(() => {
     try {
+      // Always prefer <main> — it is the true scroll container in the layout.
+      // Inner divs may have overflow-y set but don't actually clip content
+      // because flex constraints push overflow upward to <main>.
+      const main = document.querySelector("main") as HTMLElement | null;
+      if (main) {
+        setChatContainer(main);
+        return;
+      }
+
       const root = rootRef.current;
       if (!root) return;
 
@@ -504,7 +513,6 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
         return style.overflowY === "auto" || style.overflowY === "scroll";
       };
 
-      // 优先使用页面真正负责滚动的祖先容器，避免误选 assistant-ui 内部视口。
       let node: HTMLElement | null = root.parentElement;
       while (node) {
         if (isScrollableElement(node)) {
@@ -512,19 +520,6 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
           return;
         }
         node = node.parentElement;
-      }
-
-      // 回退到页面显式标注的聊天容器，但仅在它本身负责滚动时采用。
-      const local = root.querySelector("[data-chat-scroll-container='true']") as HTMLElement | null;
-      if (isScrollableElement(local)) {
-        setChatContainer(local);
-        return;
-      }
-
-      // assistant-ui 内部视口仅作为最后兜底。
-      const viewport = root.querySelector(".aui-thread-viewport") as HTMLElement | null;
-      if (isScrollableElement(viewport)) {
-        setChatContainer(viewport);
       }
     } catch {}
   }, [setChatContainer]);
