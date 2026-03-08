@@ -143,6 +143,8 @@ main {
     padding-right: 0 !important;
     padding-left: 0 !important; /* 与输入框容器左右内边距保持一致：由外层 px-6/10/14 控制 */
     align-items: stretch !important; /* 使内容横向拉满可用宽度 */
+    /* 禁用 assistant-ui 默认的 overflow:scroll，让 <main> 作为唯一滚动容器 */
+    overflow: visible !important;
   }
   /* 外层容器：圆角、边框、内边距 */
   .aui-composer-root {
