@@ -538,8 +538,9 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     try {
       const container = getScrollContainer();
       if (!container) return;
-      const offset = getComposerHeight() + BUFFER_PX;
-      const targetTop = container.scrollHeight - container.clientHeight - offset;
+      // padding-bottom on the content div already reserves space for the composer overlay,
+      // so scroll fully to the bottom — no need to subtract composer height again.
+      const targetTop = container.scrollHeight - container.clientHeight;
       container.scrollTo({ top: Math.max(targetTop, 0), behavior });
     } catch {}
   }, [getScrollContainer]);
@@ -552,13 +553,21 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   // 监听消息长度变化，控制isChatting状态
   const messages = useThread((t) => t.messages);
   const messageCount = Array.isArray(messages) ? (messages as any[]).length : 0;
+  const prevMessageCountRef = useRef(0);
   useEffect(() => {
     setIsChatting(messageCount > 0);
-    // Reset scroll-up flag when conversation starts (new messages arrive)
-    if (messageCount > 0) {
-      userScrolledUpRef.current = false;
+    // Only reset scroll-up flag when user sends a NEW message (count increases
+    // and the last message is from the user). Don't reset when assistant messages
+    // arrive — that would prevent the user from scrolling up during streaming.
+    if (messageCount > prevMessageCountRef.current && messageCount > 0) {
+      const lastMsg = (messages as any[])?.[messageCount - 1];
+      const role = (lastMsg?.role || lastMsg?.type || '').toString().toLowerCase();
+      if (role === 'user' || role === 'human') {
+        userScrolledUpRef.current = false;
+      }
     }
-  }, [messageCount]);
+    prevMessageCountRef.current = messageCount;
+  }, [messageCount, messages]);
 
   // Keep viewport following streaming output when user is already near bottom.
   useEffect(() => {
@@ -801,19 +810,19 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   if (preloadedMessages.length > 0) {
     return (
       <div className="flex h-full flex-col" ref={rootRef}>
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <div className="w-full h-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
+        <div className="flex-1 min-h-0">
+          <div className="w-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
             <div className="py-8"><PreloadedMessages /></div>
             <Thread
               key={id}
               welcome={{ message: null, suggestions: [] }}
               assistantMessage={{ components: { Text: MarkdownText, ToolFallback } }}
               tools={[PriceSnapshotTool, PurchaseStockTool]}
-              components={{ 
-                Composer: () => null, 
-                ThreadWelcome: () => null, 
-                AssistantMessage: ObservedAssistantMessage, 
-                UserMessage: CustomUserMessage 
+              components={{
+                Composer: () => null,
+                ThreadWelcome: () => null,
+                AssistantMessage: ObservedAssistantMessage,
+                UserMessage: CustomUserMessage
               }}
             />
             {/* 移除重复的流式指示，避免与其他位置的指示点叠加 */}
@@ -853,18 +862,18 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
 
   return (
     <div className="flex h-full flex-col" ref={rootRef}>
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <div className="w-full h-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
+      <div className="flex-1 min-h-0">
+        <div className="w-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
           <Thread
             key={id}
             welcome={{ message: null, suggestions: [] }}
             assistantMessage={{ components: { Text: MarkdownText, ToolFallback } }}
             tools={[PriceSnapshotTool, PurchaseStockTool]}
-            components={{ 
-              Composer: () => null, 
-              ThreadWelcome: () => null, 
-              AssistantMessage: ObservedAssistantMessage, 
-              UserMessage: CustomUserMessage 
+            components={{
+              Composer: () => null,
+              ThreadWelcome: () => null,
+              AssistantMessage: ObservedAssistantMessage,
+              UserMessage: CustomUserMessage
             }}
           />
           <div ref={endRef} aria-hidden className="h-1" />

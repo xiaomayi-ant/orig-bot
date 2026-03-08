@@ -114,8 +114,9 @@ function HomeInner() {
       // actually overflow because flex constraints push overflow to <main>.
       const container = document.querySelector("main") || chatContainerRef.current;
       if (!container) return;
-      const offset = getComposerHeight() + BUFFER_PX;
-      const targetTop = container.scrollHeight - container.clientHeight - offset;
+      // padding-bottom on the content div already reserves space for the composer,
+      // so scroll fully to bottom without subtracting composer height again.
+      const targetTop = container.scrollHeight - container.clientHeight;
       container.scrollTo({ top: Math.max(targetTop, 0), behavior: "smooth" });
     } catch {}
   }, [messages, isNearBottom]);
