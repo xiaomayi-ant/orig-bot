@@ -541,7 +541,12 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
       // padding-bottom on the content div already reserves space for the composer overlay,
       // so scroll fully to the bottom — no need to subtract composer height again.
       const targetTop = container.scrollHeight - container.clientHeight;
-      container.scrollTo({ top: Math.max(targetTop, 0), behavior });
+      if (behavior === "auto") {
+        // Direct assignment is synchronous and avoids browser scroll-animation pipeline delays.
+        container.scrollTop = Math.max(targetTop, 0);
+      } else {
+        container.scrollTo({ top: Math.max(targetTop, 0), behavior });
+      }
     } catch {}
   }, [getScrollContainer]);
 
@@ -574,24 +579,47 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
     followBottomIfNeeded("auto");
   }, [messages, isStreaming, followBottomIfNeeded]);
 
-  // Some runtimes update message text without changing list length; poll lightly while streaming.
-  useEffect(() => {
-    if (!isStreaming) return;
-    const timer = setInterval(() => followBottomIfNeeded("auto"), 120);
-    return () => clearInterval(timer);
-  }, [isStreaming, followBottomIfNeeded]);
-
-  // Streaming markdown can reflow without changing the message list. Follow container growth directly.
+  // Track content growth during streaming with MutationObserver + rAF for reliable auto-scroll.
+  // Previous approach used setInterval(120ms) + ResizeObserver on the container, but:
+  //   - ResizeObserver on the scroll container doesn't fire when content grows (only scrollHeight changes)
+  //   - setInterval has timing gaps during heavy rendering
+  // MutationObserver fires synchronously on DOM changes, and rAF ensures scroll happens after layout.
   useEffect(() => {
     if (!isStreaming) return;
     const container = scrollContainer || getScrollContainer();
     if (!container) return;
 
-    const observer = new ResizeObserver(() => {
-      followBottomIfNeeded("auto");
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
+    let rafId = 0;
+    let lastScrollHeight = container.scrollHeight;
+
+    const scheduleScroll = () => {
+      if (rafId) return; // already scheduled
+      rafId = requestAnimationFrame(() => {
+        rafId = 0;
+        // Only scroll if content actually grew (avoids fighting user scroll)
+        if (container.scrollHeight > lastScrollHeight) {
+          lastScrollHeight = container.scrollHeight;
+          followBottomIfNeeded("auto");
+        }
+      });
+    };
+
+    const mo = new MutationObserver(scheduleScroll);
+    mo.observe(container, { childList: true, subtree: true, characterData: true });
+
+    // Fallback interval for edge cases where mutations aren't observed (e.g. CSS reflow)
+    const fallback = setInterval(() => {
+      if (container.scrollHeight > lastScrollHeight) {
+        lastScrollHeight = container.scrollHeight;
+        followBottomIfNeeded("auto");
+      }
+    }, 300);
+
+    return () => {
+      mo.disconnect();
+      cancelAnimationFrame(rafId);
+      clearInterval(fallback);
+    };
   }, [scrollContainer, getScrollContainer, isStreaming, followBottomIfNeeded]);
 
   // 恢复观察者包装器，确保props正确传递
