@@ -810,7 +810,7 @@ export default function ClientPage({ params, initialHasHistory, initialMessages 
   if (preloadedMessages.length > 0) {
     return (
       <div className="flex h-full flex-col" ref={rootRef}>
-        <div className="flex-1 min-h-0">
+        <div className="flex-1">
           <div className="w-full px-6 md:px-10 lg:px-14 mx-auto" style={{ paddingBottom: "var(--composer-h, 96px)", maxWidth: "calc((var(--chat-max-w) + 2 * 3.5rem) * 6/7)" }}>
             <div className="py-8"><PreloadedMessages /></div>
             <Thread
